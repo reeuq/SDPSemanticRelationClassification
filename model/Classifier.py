@@ -6,6 +6,7 @@ from keras.preprocessing import sequence
 import sys
 import os
 from six.moves import cPickle as pickle
+import shutil
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from evaluation.Evaluation import precision_each_class
@@ -18,13 +19,13 @@ from evaluation.Evaluation import print_out
 
 # train
 # 一批传入多少数据
-batch_size = 32
+batch_size = 64
 # 存储模型个数
 num_checkpoints = 5
 # 初始学习率
 starter_learning_rate = 0.01
 # 训练轮数
-epochs = 8
+epochs = 15
 # k交叉验证
 k_fold = 5
 # 获取sdp特征最大长度
@@ -38,11 +39,11 @@ each_filter_num = 128
 # 类别个数
 n_class = 6
 # l2正则项系数
-l2_loss_beta = 0.001
+l2_loss_beta = 0.05
 
 
 class Model(object):
-    def __init__(self, is_training, embedding_vector, scope):
+    def __init__(self, is_training, embedding_vector, scope=None):
         # placeholder
         self.sdp_ids = tf.placeholder(tf.int32, [None, sdp_max_len], name='sdp_ids')
         self.labels = tf.placeholder(tf.int32, [None, n_class], name='labels')
@@ -51,18 +52,25 @@ class Model(object):
         # get embedding
         with tf.device('/cpu:0'), tf.name_scope('embedding'):
             embedding_matrix = tf.get_variable('embedding_matrix', shape=embedding_vector.shape, dtype=tf.float32,
-                                               trainable=True, initializer=tf.constant_initializer(embedding_vector))
+                                               trainable=False, initializer=tf.constant_initializer(embedding_vector))
             sdp_embedded = tf.nn.embedding_lookup(embedding_matrix, self.sdp_ids, name='sdp_embedded')
-            self.input = tf.reshape(sdp_embedded, [-1, sdp_max_len, sdp_dim, input_channel_num])
+
+            embedding_matrix_train = tf.get_variable('embedding_matrix_train', shape=embedding_vector.shape,
+                                                     dtype=tf.float32, trainable=True,
+                                                     initializer=tf.constant_initializer(embedding_vector))
+            sdp_embedded_train = tf.nn.embedding_lookup(embedding_matrix_train, self.sdp_ids, name='sdp_embedded_train')
+
+            self.input = tf.concat([tf.reshape(sdp_embedded, [-1, sdp_max_len, sdp_dim, input_channel_num]),
+                                   tf.reshape(sdp_embedded_train, [-1, sdp_max_len, sdp_dim, input_channel_num])], 3)
 
         with tf.name_scope('cnn'):
-            filter_1 = tf.get_variable("filter_1", shape=[3, sdp_dim, input_channel_num, each_filter_num],
+            filter_1 = tf.get_variable("filter_1", shape=[3, sdp_dim, input_channel_num*2, each_filter_num],
                                        initializer=tf.truncated_normal_initializer())
             bias_1 = tf.get_variable("bias_1", shape=[each_filter_num], initializer=tf.zeros_initializer)
-            filter_2 = tf.get_variable("filter_2", shape=[4, sdp_dim, input_channel_num, each_filter_num],
+            filter_2 = tf.get_variable("filter_2", shape=[4, sdp_dim, input_channel_num*2, each_filter_num],
                                        initializer=tf.truncated_normal_initializer())
             bias_2 = tf.get_variable("bias_2", shape=[each_filter_num], initializer=tf.zeros_initializer)
-            filter_3 = tf.get_variable("filter_3", shape=[5, sdp_dim, input_channel_num, each_filter_num],
+            filter_3 = tf.get_variable("filter_3", shape=[5, sdp_dim, input_channel_num*2, each_filter_num],
                                        initializer=tf.truncated_normal_initializer())
             bias_3 = tf.get_variable("bias_3", shape=[each_filter_num], initializer=tf.zeros_initializer)
 
@@ -90,6 +98,9 @@ class Model(object):
 
         with tf.name_scope("loss"):
             l2_loss = tf.nn.l2_loss(W2) + tf.nn.l2_loss(b2)
+            # + tf.nn.l2_loss(filter_2) + tf.nn.l2_loss(bias_2)\
+            # + tf.nn.l2_loss(filter_3) + tf.nn.l2_loss(bias_3)
+            # + tf.nn.l2_loss(filter_1) + tf.nn.l2_loss(bias_1)
             self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=self.labels)) + \
                 l2_loss_beta * l2_loss
             tf.summary.scalar('loss', self.loss)
@@ -108,7 +119,7 @@ class Model(object):
                                            initializer=tf.constant_initializer(0), dtype=tf.int32)
         # 选择使用的优化器
         if is_training:
-            self.train_op = tf.train.GradientDescentOptimizer(starter_learning_rate)\
+            self.train_op = tf.train.AdamOptimizer()\
                 .minimize(self.loss, global_step=self.global_step)
 
 
@@ -154,7 +165,18 @@ if __name__ == '__main__':
     print('Training set: ', sdp_id_padding.shape)
     print('Testing set: ', test_sdp_id_padding.shape)
 
-    with tf.Session() as sess:
+    # 删除日志文件
+    try:
+        train_dir = os.path.abspath('./../resource/summary/train')
+        valid_dir = os.path.abspath('./../resource/summary/valid')
+        shutil.rmtree(train_dir)
+        shutil.rmtree(valid_dir)
+    except Exception:
+        pass
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    with tf.Session(config=config) as sess:
         with tf.name_scope("train") as train_scope:
             with tf.variable_scope("model", reuse=None):
                 train_model = Model(True, wordEmbedding, train_scope)
