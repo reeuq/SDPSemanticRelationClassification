@@ -23,7 +23,7 @@ batch_size = 64
 # 存储模型个数
 num_checkpoints = 5
 # 初始学习率
-starter_learning_rate = 0.01
+starter_learning_rate = 0.0005
 # 训练轮数
 epochs = 15
 # k交叉验证
@@ -46,7 +46,7 @@ class Model(object):
     def __init__(self, is_training, embedding_vector, scope=None):
         # placeholder
         self.sdp_ids = tf.placeholder(tf.int32, [None, sdp_max_len], name='sdp_ids')
-        self.labels = tf.placeholder(tf.int32, [None, n_class], name='labels')
+        self.labels = tf.placeholder(tf.float32, [None, n_class], name='labels')
 
         # Embedding Layer
         # get embedding
@@ -119,7 +119,7 @@ class Model(object):
                                            initializer=tf.constant_initializer(0), dtype=tf.int32)
         # 选择使用的优化器
         if is_training:
-            self.train_op = tf.train.AdamOptimizer()\
+            self.train_op = tf.train.AdamOptimizer(starter_learning_rate)\
                 .minimize(self.loss, global_step=self.global_step)
 
 
@@ -145,6 +145,16 @@ def randomize(dataset, label):
     return shuffled_dataset, shuffled_labels
 
 
+def trans_label(label):
+    count = class_label_count(label)
+    count_sum = float(sum(count))
+    weight = list(map(lambda x: count_sum/(6*x), count))
+    weight_matrix = np.zeros(label.shape)
+    for i in range(6):
+        weight_matrix[:, i] = weight[i]
+    return np.multiply(label, weight_matrix)
+
+
 if __name__ == '__main__':
     print('load data........')
     with open('./../resource/generated/input.pickle', 'rb') as f:
@@ -161,9 +171,12 @@ if __name__ == '__main__':
         del test
     sdp_id_padding = sequence.pad_sequences(sdp_id, maxlen=sdp_max_len, truncating='post', padding='post')
     test_sdp_id_padding = sequence.pad_sequences(test_sdp_id, maxlen=sdp_max_len, truncating='post', padding='post')
+    labels = trans_label(labels)
+    # test_labels = trans_label(test_labels)
 
     print('Training set: ', sdp_id_padding.shape)
     print('Testing set: ', test_sdp_id_padding.shape)
+    print(test_labels)
 
     # 删除日志文件
     try:

@@ -43,7 +43,7 @@ if __name__ == '__main__':
         sess.run(tf.global_variables_initializer())
 
         # 测试阶段
-        model_file = tf.train.latest_checkpoint('./../resource/model_66.8/')
+        model_file = tf.train.latest_checkpoint('./../resource/model_67_57.1/')
         saver.restore(sess, model_file)
         feed_dic = {eval_model.sdp_ids: test_sdp_id_padding,
                     eval_model.labels: test_labels}
