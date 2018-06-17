@@ -21,10 +21,8 @@ if __name__ == '__main__':
         parameter = pickle.load(f)
         wordEmbedding = parameter['wordEmbedding']
         del parameter
-        train = pickle.load(f)
-        sdp_id = train['train_sdp_id']
-        labels = train['train_labels']
-        del train
+
+    with open('./../resource/generated/input_1.2_test.pickle', 'rb') as f:
         test = pickle.load(f)
         test_sdp_id = test['test_sdp_id']
         test_labels = test['test_labels']

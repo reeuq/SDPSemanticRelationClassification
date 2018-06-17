@@ -9,7 +9,7 @@ def get_sentence_id(sen, dic):
     for each_sen in sen:
         sen_id = []
         for each_word in each_sen.split():
-            sen_id.append(dic.get(each_word))
+            sen_id.append(dic.get(each_word, 0))
         sen_ids.append(sen_id)
         if len(each_sen.split()) > max_len:
             max_len = len(each_sen.split())

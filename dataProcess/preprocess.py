@@ -146,13 +146,13 @@ def get_sentence_sdp(dependency_trees, relation_entity, entity_id_pair):
             item_head = item[item.find('(') + 1:item.find(',')]
             item_tail = item[item.find(',') + 2:item.find(')')]
             edges.append((item_head, item_tail))
-            if item_head.find(relation_entity[i][0]) != -1:
+            if item_head[:item_head.rfind('-')] == relation_entity[i][0]:
                 source = item_head
-            if item_tail.find(relation_entity[i][0]) != -1:
+            if item_tail[:item_tail.rfind('-')] == relation_entity[i][0]:
                 source = item_tail
-            if item_head.find(relation_entity[i][1]) != -1:
+            if item_head[:item_head.rfind('-')] == relation_entity[i][1]:
                 target = item_head
-            if item_tail.find(relation_entity[i][1]) != -1:
+            if item_tail[:item_tail.rfind('-')] == relation_entity[i][1]:
                 target = item_tail
         graph = nx.Graph(edges)
         shortest_path = nx.shortest_path(graph, source=source, target=target)
@@ -176,95 +176,58 @@ def get_sentence_sdp(dependency_trees, relation_entity, entity_id_pair):
 
 
 if __name__ == "__main__":
-    # train_sentences = get_sentences_labels('./../resource/original/1.1.text.xml',
-    #                                        './../resource/original/1.1.relations.txt')
-    # train_sentences_extend = get_sentences_labels('./../resource/original/1.2.text.xml',
-    #                                               './../resource/original/1.2.relations.txt')
-    # test_sentences = get_sentences_labels('./../resource/original/1.1.test.text.xml',
-    #                                       './../resource/original/keys.test.1.1.txt')
+    # test_sentences = get_sentences_labels('./../resource/original/1.2.test.text.xml',
+    #                                       './../resource/original/keys.test.1.2.txt')
     #
-    # train_sentences[0].extend(train_sentences_extend[0])
-    # train_sentences[1].extend(train_sentences_extend[1])
-    # train_sentences[2].update(train_sentences_extend[2])
-    # train_sentences[3].extend(train_sentences_extend[3])
-    #
-    # with open('./../resource/generated/sentences.pickle', 'wb') as f:
-    #     train = {
-    #         'train_sentences': train_sentences[0],
-    #         'train_labels': train_sentences[1],
-    #         'train_entity_id_pair': train_sentences[2],
-    #         'train_relation_entity': train_sentences[3]
-    #     }
+    # with open('./../resource/generated/sentences_1.2_test.pickle', 'wb') as f:
     #     test = {
     #         'test_sentences': test_sentences[0],
     #         'test_labels': test_sentences[1],
     #         'test_entity_id_pair': test_sentences[2],
     #         'test_relation_entity': test_sentences[3]
     #     }
-    #     pickle.dump(train, f, protocol=2)
     #     pickle.dump(test, f, protocol=2)
 
-    # with open('./../resource/generated/sentences.pickle', 'rb') as f:
-    #     train = pickle.load(f)
-    #     train_sentences = train['train_sentences']
-    #     train_entity_id_pair = train['train_entity_id_pair']
-    #     train_relation_entity = train['train_relation_entity']
-    #     del train
-    #     test = pickle.load(f)
-    #     test_sentences = test['test_sentences']
-    #     test_entity_id_pair = test['test_entity_id_pair']
-    #     test_relation_entity = test['test_relation_entity']
-    #     del test
-    #
+    with open('./../resource/generated/sentences_1.2_test.pickle', 'rb') as f:
+        test = pickle.load(f)
+        test_sentences = test['test_sentences']
+        test_entity_id_pair = test['test_entity_id_pair']
+        test_relation_entity = test['test_relation_entity']
+        test_labels = test['test_labels']
+        del test
+
     # dep_parser = StanfordDependencyParser(model_path='edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz')
-    #
-    # train_dependency_tree = list(dep_parser.raw_parse_sents(train_sentences))
+
     # test_dependency_tree = list(dep_parser.raw_parse_sents(test_sentences))
-    #
-    # with open('./../resource/generated/dependency_tree.pickle', 'wb') as f:
-    #     train = {
-    #         'train_dependency_tree': train_dependency_tree,
-    #         'train_labels': train_labels
-    #     }
+
+    # with open('./../resource/generated/dependency_tree_1.2_test.pickle', 'wb') as f:
     #     test = {
     #         'test_dependency_tree': test_dependency_tree,
     #         'test_labels': test_labels
     #     }
-    #     pickle.dump(train, f, protocol=2)
     #     pickle.dump(test, f, protocol=2)
 
-    # with open('./../resource/generated/dependency_tree.pickle', 'rb') as f:
+    with open('./../resource/generated/dependency_tree_1.2_test.pickle', 'rb') as f:
+        test = pickle.load(f)
+        test_dependency_tree = test['test_dependency_tree']
+        del test
+
+    test_sdp = get_sentence_sdp(test_dependency_tree, test_relation_entity, test_entity_id_pair)
+
+    with open('./../resource/generated/sdp_1.2_test.pickle', 'wb') as f:
+        test = {
+            'test_sdp': test_sdp,
+            'test_labels': test_labels
+        }
+        pickle.dump(test, f, protocol=2)
+    print('end')
+
+    # with open('./../resource/generated/sdp.pickle', 'rb') as f:
     #     train = pickle.load(f)
-    #     train_dependency_tree = train['train_dependency_tree']
+    #     train_sdp = train['train_sdp']
     #     train_labels = train['train_labels']
     #     del train
     #     test = pickle.load(f)
-    #     test_dependency_tree = test['test_dependency_tree']
+    #     test_sdp = test['test_sdp']
     #     test_labels = test['test_labels']
     #     del test
-    #
-    # train_sdp = get_sentence_sdp(train_dependency_tree, train_relation_entity, train_entity_id_pair)
-    # test_sdp = get_sentence_sdp(test_dependency_tree, test_relation_entity, test_entity_id_pair)
-    #
-    # with open('./../resource/generated/sdp.pickle', 'wb') as f:
-    #     train = {
-    #         'train_sdp': train_sdp,
-    #         'train_labels': train_labels
-    #     }
-    #     test = {
-    #         'test_sdp': test_sdp,
-    #         'test_labels': test_labels
-    #     }
-    #     pickle.dump(train, f, protocol=2)
-    #     pickle.dump(test, f, protocol=2)
-    # print('end')
-
-    with open('./../resource/generated/sdp.pickle', 'rb') as f:
-        train = pickle.load(f)
-        train_sdp = train['train_sdp']
-        train_labels = train['train_labels']
-        del train
-        test = pickle.load(f)
-        test_sdp = test['test_sdp']
-        test_labels = test['test_labels']
-        del test
